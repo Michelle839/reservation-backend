@@ -110,6 +110,15 @@ public ReservationResponse createReservation(CreateReservationRequest request) {
 - Keep API payloads stable; when adding fields, make them optional unless breaking change is intended.
 - Prefer explicit request/response DTOs per endpoint rather than reusing “generic” DTOs.
 
+### Mappers (DTO ↔ Entity)
+
+- **Location**: All mappers live in the `mapper/` package (e.g., `ReservationMapper`).
+- **Responsibility**: Only map between DTOs and entities (or domain objects). No business logic, no validation, no repository calls.
+- **Naming**: `{Entity}Mapper` with methods such as `toEntity(RequestDto)`, `toResponse(Entity)`, or `toDto(Entity)` as needed.
+- **Bean**: Mappers are Spring components (`@Component`) so they can be constructor-injected in services; use a single mapper per aggregate/entity for consistency.
+- **Null handling**: Document and handle null inputs (e.g., return null or empty DTO) to avoid NPEs at the boundary.
+- **Single place**: Controllers and services must not duplicate mapping logic; always go through the mapper.
+
 ### Persistence (JPA)
 
 - Entities represent persistence model; keep them focused and avoid exposing them outside service layer.
