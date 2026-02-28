@@ -1,0 +1,139 @@
+---
+description: Java 25 + Spring Boot service standards (naming, Javadoc, DTO records, structure)
+alwaysApply: true
+---
+
+## Spring Boot (Java 25) Project Rules
+
+These rules apply to **all work in this repository**.
+
+### Project structure (current)
+
+Keep code organized following this baseline (extend it, don’t flatten it):
+
+```text
+reservation-backend/
+  pom.xml
+  src/
+    main/
+      java/
+        com/michelle/reservation/
+          BackendReservasApplication.java
+          (add packages below)
+      resources/
+        application.properties
+        static/
+        templates/
+    test/
+      java/
+  target/
+```
+
+Recommended package layout under `com.michelle.reservation`:
+
+```text
+com.michelle.reservation
+  config/               (Spring configuration, beans, properties binding)
+  controller/           (REST controllers)
+  dto/                  (request/response records)
+  entity/               (JPA entities)
+  exception/            (custom exceptions + global handler)
+  mapper/               (DTO <-> domain/entity mapping)
+  repository/           (Spring Data repositories)
+  service/              (business logic)
+  service/impl/         (optional: implementations when interface is needed)
+  validation/           (custom validators)
+  util/                 (small pure helpers; avoid dumping ground)
+```
+
+### Language and naming
+
+- **English only** for **class**, **method**, **field**, and **package** names.
+- Use standard Java naming:
+  - **Classes/records/enums**: `PascalCase` (e.g., `ReservationService`)
+  - **Methods/fields/locals**: `camelCase` (e.g., `findAvailableTables`)
+  - **Constants**: `UPPER_SNAKE_CASE`
+- Avoid abbreviations unless universally understood (`id`, `url`, `api`).
+- Prefer domain-centric naming: `Reservation`, `Table`, `Customer`, `TimeSlot`.
+
+### Javadoc requirements (strict)
+
+- **Every `public` method must have up-to-date Javadoc** describing:
+  - **What** it does (behavior + key business rule)
+  - **Parameters** (`@param`) and their constraints/meaning
+  - **Return value** (`@return`) semantics
+  - **Exceptions** (`@throws`) that can be raised and when
+- Keep Javadoc accurate during refactors. If behavior changes, update docs in the same change.
+- Javadoc should explain intent and contract; do not narrate obvious code.
+
+Javadoc example pattern:
+
+```java
+/**
+ * Creates a reservation for a table within the requested time slot if capacity and rules allow it.
+ *
+ * @param request reservation details validated at the API boundary
+ * @return the created reservation
+ * @throws ReservationConflictException if the time slot is no longer available
+ */
+public ReservationResponse createReservation(CreateReservationRequest request) { ... }
+```
+
+### DTOs use Java records
+
+- DTOs (request/response) must be **`record`** types in `dto/`.
+- Use Bean Validation annotations on DTO components (e.g., `@NotNull`, `@Email`, `@Size`).
+- Keep DTOs immutable and simple; no business logic inside DTOs.
+- Avoid exposing entities directly in controllers; always map to/from DTOs.
+
+### Spring Boot service design
+
+- **Controllers**: thin; validate inputs; translate HTTP to service calls; return DTOs.
+- **Services**: contain business rules; enforce invariants; orchestrate repositories; remain testable.
+- **Repositories**: persistence only; keep query methods focused; avoid leaking persistence concerns upward.
+- Prefer constructor injection (no field injection).
+- Use `@Transactional` at service layer:
+  - Default read operations: `@Transactional(readOnly = true)`
+  - Write operations: `@Transactional`
+  - Avoid transactions in controllers.
+
+### Error handling
+
+- Use a single global exception handler (e.g., `@RestControllerAdvice`) returning consistent error payloads.
+- Do not return stack traces to clients.
+- Map business errors to appropriate HTTP statuses (e.g., 409 conflict, 404 not found, 400 validation).
+- Keep exception names in English and specific (e.g., `ReservationNotFoundException`).
+
+### Validation and API contracts
+
+- Validate at the boundary (controller DTO validation) and **re-check critical invariants** in services.
+- Keep API payloads stable; when adding fields, make them optional unless breaking change is intended.
+- Prefer explicit request/response DTOs per endpoint rather than reusing “generic” DTOs.
+
+### Persistence (JPA)
+
+- Entities represent persistence model; keep them focused and avoid exposing them outside service layer.
+- Use `@Version` for optimistic locking where concurrent updates are realistic.
+- Avoid `EAGER` fetching by default; use `LAZY` + explicit fetching strategies.
+- Prefer database constraints (unique, not null, FK) alongside application validation.
+
+### Logging and observability
+
+- Log business-relevant events at service boundaries; avoid noisy debug logs in production paths.
+- Never log secrets (passwords, tokens, connection strings).
+- Include identifiers in logs (reservationId, tableId) using structured logging style when possible.
+
+### Testing
+
+- For services: unit tests with mocks when needed; focus on business rules and edge cases.
+- For web layer: `@WebMvcTest` for controller contracts.
+- For persistence: `@DataJpaTest` for repository behavior.
+- Tests should use English names and clearly state intent.
+
+### Formatting and style defaults
+
+- Keep methods small and single-purpose.
+- Prefer early validation/guard clauses.
+- Use `final` where it improves clarity (especially for constructor-injected fields and local variables).
+- Avoid Lombok for DTOs (records already cover it). Use Lombok sparingly elsewhere and never at the cost of readability.
+
